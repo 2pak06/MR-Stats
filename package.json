@@ -1,0 +1,60 @@
+{
+  "name": "mr-stats",
+  "productName": "MR Stats",
+  "version": "0.5.0",
+  "description": "MR Stats — personal nutrition, workout and progress tracker",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.mrstats.app",
+    "productName": "MR Stats",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Miro_Riven",
+        "repo": "MR-Stats",
+        "releaseType": "release"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "package.json",
+      "src/**/*"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "MR-Stats-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MR Stats"
+    },
+    "portable": {
+      "artifactName": "MR-Stats-Portable-${version}-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}

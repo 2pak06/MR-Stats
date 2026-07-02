@@ -1,0 +1,155 @@
+.checkRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.checkRow:last-child {
+  border-bottom: 0;
+}
+
+.checkRow input {
+  width: auto;
+}
+
+.recipe {
+  margin-bottom: 14px;
+}
+
+.recipe h4 {
+  margin-bottom: 8px;
+}
+
+.recipeFilters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 240px);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.recipeList {
+  display: grid;
+  gap: 10px;
+}
+
+.recipeListRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.recipeListItem {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--card-strong);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 14px;
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.recipeListItem:hover {
+  background: #283044;
+}
+
+.favoriteBtn {
+  border: 1px solid var(--line);
+  background: var(--card-strong);
+  color: var(--muted);
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.favoriteBtn:hover,
+.favoriteBtn.active {
+  color: var(--warn);
+  background: #283044;
+}
+
+.recipeMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.recipeMeta span {
+  background: var(--card-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+.servingsControl {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--card-strong);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  margin: 0 0 14px;
+  padding: 8px;
+}
+
+.servingsControl span {
+  min-width: 86px;
+  text-align: center;
+  font-weight: 800;
+}
+
+.step {
+  background: var(--card-strong);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 10px 0;
+}
+
+.cookingStep p {
+  margin-top: 0;
+}
+
+.timerBox {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+#recipeTimer {
+  color: var(--accent);
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.timerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recipeControls {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .recipeFilters {
+    grid-template-columns: 1fr;
+  }
+}
