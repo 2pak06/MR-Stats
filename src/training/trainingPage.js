@@ -6,6 +6,7 @@ import {
 } from "./programStorage.js";
 
 let isCreateProgramFormOpen = false;
+let activeWorkout = null;
 
 document.addEventListener("click", (event) => {
   const target = event.target;
@@ -39,6 +40,19 @@ document.addEventListener("click", (event) => {
 
   if (action === "delete-program") {
     deleteProgram(actionElement.dataset.programId);
+  }
+
+  if (action === "start-program") {
+    startWorkout(actionElement.dataset.programId);
+  }
+
+  if (action === "complete-workout-step") {
+    completeWorkoutStep();
+  }
+
+  if (action === "cancel-workout") {
+    activeWorkout = null;
+    refreshTrainingContent();
   }
 
   if (action === "add-exercise") {
@@ -85,6 +99,10 @@ export function renderTrainingPage() {
 }
 
 function renderTrainingContent() {
+  if (activeWorkout) {
+    return renderActiveWorkout();
+  }
+
   return `
     <div class="grid">
       ${renderStartWorkoutSection()}
@@ -152,7 +170,55 @@ function renderProgram(program) {
       <button class="secondaryAction" type="button" data-training-action="delete-program" data-program-id="${program.id}">
         Видалити програму
       </button>
-      <button class="action" type="button">Почати тренування</button>
+      <button
+        class="action"
+        type="button"
+        data-training-action="start-program"
+        data-program-id="${program.id}"
+        ${program.exercises.length ? "" : "disabled"}
+      >
+        Почати тренування
+      </button>
+    </div>
+  `;
+}
+
+function renderActiveWorkout() {
+  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+
+  if (!currentExercise) {
+    return `
+      <div class="card">
+        <h3>Тренування завершено</h3>
+        <button class="action" type="button" data-training-action="cancel-workout">
+          Повернутися до програм
+        </button>
+      </div>
+    `;
+  }
+
+  const mode = getExerciseMode(currentExercise);
+  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
+  const stepLabel = mode === "ladder" ? "Сходинка" : "Підхід";
+
+  return `
+    <div class="card">
+      <h3>${escapeHtml(activeWorkout.program.name)}</h3>
+      <div class="step">
+        <p class="muted">Поточна вправа</p>
+        <h4>${escapeHtml(currentExercise.name)}</h4>
+        <p>Режим: ${mode === "ladder" ? "Сходинка" : "Підходи"}</p>
+        <p>${stepLabel}: ${currentStep.position} з ${currentStep.total}</p>
+        <p>Повторення: ${currentStep.reps}</p>
+        <p>Вага: ${formatWeight(currentExercise.weight)}</p>
+        <p>Відпочинок: ${currentExercise.restTime} с</p>
+        <button class="action" type="button" data-training-action="complete-workout-step">
+          Виконано
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="cancel-workout">
+          Скасувати тренування
+        </button>
+      </div>
     </div>
   `;
 }
@@ -407,6 +473,55 @@ function removeExercise(programId, exerciseId) {
   refreshTrainingContent();
 }
 
+function startWorkout(programId) {
+  const program = loadWorkoutPrograms().find((item) => item.id === programId);
+
+  if (!program || !program.exercises.length) {
+    return;
+  }
+
+  activeWorkout = {
+    program,
+    exerciseIndex: 0,
+    stepIndex: 0
+  };
+
+  refreshTrainingContent();
+}
+
+function completeWorkoutStep() {
+  if (!activeWorkout) {
+    return;
+  }
+
+  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+
+  if (!currentExercise) {
+    refreshTrainingContent();
+    return;
+  }
+
+  const totalSteps = getWorkoutStepCount(currentExercise);
+  const nextStepIndex = activeWorkout.stepIndex + 1;
+
+  if (nextStepIndex < totalSteps) {
+    activeWorkout = {
+      ...activeWorkout,
+      stepIndex: nextStepIndex
+    };
+    refreshTrainingContent();
+    return;
+  }
+
+  activeWorkout = {
+    ...activeWorkout,
+    exerciseIndex: activeWorkout.exerciseIndex + 1,
+    stepIndex: 0
+  };
+
+  refreshTrainingContent();
+}
+
 function updateProgramField(input) {
   const programs = loadWorkoutPrograms().map((program) => {
     if (program.id !== input.dataset.programId) {
@@ -484,6 +599,37 @@ function getExerciseMode(exercise) {
   return exercise.mode || "sets";
 }
 
+function getWorkoutStepCount(exercise) {
+  if (getExerciseMode(exercise) === "ladder") {
+    const from = toNumber(exercise.ladderFrom, 1);
+    const to = toNumber(exercise.ladderTo, from);
+
+    return Math.abs(to - from) + 1;
+  }
+
+  return Math.max(1, toNumber(exercise.sets, 1));
+}
+
+function getCurrentWorkoutStep(exercise, stepIndex) {
+  if (getExerciseMode(exercise) === "ladder") {
+    const from = toNumber(exercise.ladderFrom, 1);
+    const to = toNumber(exercise.ladderTo, from);
+    const direction = to >= from ? 1 : -1;
+
+    return {
+      position: stepIndex + 1,
+      total: getWorkoutStepCount(exercise),
+      reps: from + stepIndex * direction
+    };
+  }
+
+  return {
+    position: stepIndex + 1,
+    total: getWorkoutStepCount(exercise),
+    reps: toNumber(exercise.reps, 1)
+  };
+}
+
 function renderExerciseSummary(exercise) {
   if (getExerciseMode(exercise) === "ladder") {
     return `Сходинка: ${exercise.ladderFrom ?? 1} → ${exercise.ladderTo ?? 5} • ${formatWeight(exercise.weight)} • ${exercise.restTime} с`;
@@ -524,4 +670,11 @@ function escapeAttribute(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
