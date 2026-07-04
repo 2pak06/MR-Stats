@@ -7,6 +7,7 @@ import {
 
 let isCreateProgramFormOpen = false;
 let activeWorkout = null;
+let restTimerId = null;
 
 document.addEventListener("click", (event) => {
   const target = event.target;
@@ -50,7 +51,12 @@ document.addEventListener("click", (event) => {
     completeWorkoutStep();
   }
 
+  if (action === "skip-rest") {
+    finishRestAndAdvance();
+  }
+
   if (action === "cancel-workout") {
+    stopRestTimer();
     activeWorkout = null;
     refreshTrainingContent();
   }
@@ -186,6 +192,10 @@ function renderProgram(program) {
 function renderActiveWorkout() {
   const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
 
+  if (activeWorkout.rest) {
+    return renderWorkoutRest();
+  }
+
   if (!currentExercise) {
     return `
       <div class="card">
@@ -214,6 +224,24 @@ function renderActiveWorkout() {
         <p>Відпочинок: ${currentExercise.restTime} с</p>
         <button class="action" type="button" data-training-action="complete-workout-step">
           Виконано
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="cancel-workout">
+          Скасувати тренування
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWorkoutRest() {
+  return `
+    <div class="card">
+      <h3>${escapeHtml(activeWorkout.rest.exerciseName)}</h3>
+      <div class="step">
+        <p class="muted">Відпочинок</p>
+        <h4>${activeWorkout.rest.secondsLeft} с</h4>
+        <button class="action" type="button" data-training-action="skip-rest">
+          Пропустити
         </button>
         <button class="secondaryAction" type="button" data-training-action="cancel-workout">
           Скасувати тренування
@@ -474,6 +502,7 @@ function removeExercise(programId, exerciseId) {
 }
 
 function startWorkout(programId) {
+  stopRestTimer();
   const program = loadWorkoutPrograms().find((item) => item.id === programId);
 
   if (!program || !program.exercises.length) {
@@ -483,7 +512,8 @@ function startWorkout(programId) {
   activeWorkout = {
     program,
     exerciseIndex: 0,
-    stepIndex: 0
+    stepIndex: 0,
+    rest: null
   };
 
   refreshTrainingContent();
@@ -501,13 +531,89 @@ function completeWorkoutStep() {
     return;
   }
 
+  startRestTimer(currentExercise);
+}
+
+function startRestTimer(exercise) {
+  stopRestTimer();
+
+  if (!activeWorkout) {
+    return;
+  }
+
+  activeWorkout = {
+    ...activeWorkout,
+    rest: {
+      exerciseName: exercise.name,
+      secondsLeft: Math.max(0, toNumber(exercise.restTime, 0))
+    }
+  };
+
+  refreshTrainingContent();
+
+  if (activeWorkout.rest.secondsLeft <= 0) {
+    restTimerId = window.setTimeout(finishRestAndAdvance, 0);
+    return;
+  }
+
+  restTimerId = window.setInterval(() => {
+    if (!activeWorkout?.rest) {
+      stopRestTimer();
+      return;
+    }
+
+    const secondsLeft = Math.max(0, activeWorkout.rest.secondsLeft - 1);
+
+    activeWorkout = {
+      ...activeWorkout,
+      rest: {
+        ...activeWorkout.rest,
+        secondsLeft
+      }
+    };
+
+    refreshTrainingContent();
+
+    if (secondsLeft <= 0) {
+      finishRestAndAdvance();
+    }
+  }, 1000);
+}
+
+function finishRestAndAdvance() {
+  if (!activeWorkout) {
+    stopRestTimer();
+    return;
+  }
+
+  stopRestTimer();
+  advanceWorkoutStep();
+}
+
+function advanceWorkoutStep() {
+  if (!activeWorkout) {
+    return;
+  }
+
+  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+
+  if (!currentExercise) {
+    activeWorkout = {
+      ...activeWorkout,
+      rest: null
+    };
+    refreshTrainingContent();
+    return;
+  }
+
   const totalSteps = getWorkoutStepCount(currentExercise);
   const nextStepIndex = activeWorkout.stepIndex + 1;
 
   if (nextStepIndex < totalSteps) {
     activeWorkout = {
       ...activeWorkout,
-      stepIndex: nextStepIndex
+      stepIndex: nextStepIndex,
+      rest: null
     };
     refreshTrainingContent();
     return;
@@ -516,10 +622,21 @@ function completeWorkoutStep() {
   activeWorkout = {
     ...activeWorkout,
     exerciseIndex: activeWorkout.exerciseIndex + 1,
-    stepIndex: 0
+    stepIndex: 0,
+    rest: null
   };
 
   refreshTrainingContent();
+}
+
+function stopRestTimer() {
+  if (!restTimerId) {
+    return;
+  }
+
+  window.clearInterval(restTimerId);
+  window.clearTimeout(restTimerId);
+  restTimerId = null;
 }
 
 function updateProgramField(input) {
