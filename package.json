@@ -14,7 +14,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Miro_Riven",
+        "owner": "2pak06",
         "repo": "MR-Stats",
         "releaseType": "release"
       }
