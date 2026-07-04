@@ -4,14 +4,37 @@ import {
   loadWorkoutPrograms,
   saveWorkoutPrograms
 } from "./programStorage.js";
-
-const ACTIVE_WORKOUT_KEY = "mr_training_active_workout";
+import { escapeAttribute, formatWeight } from "./workoutFormat.js";
+import {
+  backToWorkoutStep as buildWorkoutBackState,
+  buildConfirmedWorkoutState,
+  calculateNextWorkoutState,
+  createActiveWorkout,
+  createWorkoutStepConfirmation,
+  getCurrentExercise,
+  getExerciseMode,
+  restoreActiveWorkout,
+  toNumber
+} from "./workoutEngine.js";
+import {
+  clearSavedActiveWorkout,
+  loadSavedActiveWorkoutState,
+  saveActiveWorkoutState as persistActiveWorkoutState
+} from "./workoutPersistence.js";
+import {
+  renderActiveWorkout,
+  renderSavedWorkoutPrompt
+} from "./workoutRenderer.js";
+import {
+  startRestCountdown,
+  startRestTimer,
+  stopRestTimer
+} from "./workoutTimer.js";
 
 let isCreateProgramFormOpen = false;
 let savedWorkoutState = loadSavedActiveWorkoutState();
 let restoreMessage = "";
 let activeWorkout = null;
-let restTimerId = null;
 
 document.addEventListener("click", (event) => {
   const target = event.target;
@@ -131,34 +154,17 @@ export function renderTrainingPage() {
 
 function renderTrainingContent() {
   if (activeWorkout) {
-    return renderActiveWorkout();
+    return renderActiveWorkout(activeWorkout);
   }
 
   if (savedWorkoutState || restoreMessage) {
-    return renderSavedWorkoutPrompt();
+    return renderSavedWorkoutPrompt(savedWorkoutState, restoreMessage);
   }
 
   return `
     <div class="grid">
       ${renderStartWorkoutSection()}
       ${renderProgramsSection()}
-    </div>
-  `;
-}
-
-function renderSavedWorkoutPrompt() {
-  return `
-    <div class="card">
-      <h3>Тренування</h3>
-      ${restoreMessage ? `<p class="muted">${escapeHtml(restoreMessage)}</p>` : '<p class="muted">Є незавершене тренування.</p>'}
-      ${savedWorkoutState ? `
-        <button class="action" type="button" data-training-action="continue-workout">
-          Продовжити тренування
-        </button>
-        <button class="secondaryAction" type="button" data-training-action="reset-saved-workout">
-          Скинути тренування
-        </button>
-      ` : ""}
     </div>
   `;
 }
@@ -231,104 +237,6 @@ function renderProgram(program) {
       >
         Почати тренування
       </button>
-    </div>
-  `;
-}
-
-function renderActiveWorkout() {
-  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
-
-  if (activeWorkout.confirmation) {
-    return renderWorkoutStepConfirmation(currentExercise);
-  }
-
-  if (activeWorkout.rest) {
-    return renderWorkoutRest();
-  }
-
-  if (!currentExercise) {
-    return `
-      <div class="card">
-        <h3>Тренування завершено</h3>
-        <button class="action" type="button" data-training-action="cancel-workout">
-          Повернутися до програм
-        </button>
-      </div>
-    `;
-  }
-
-  const mode = getExerciseMode(currentExercise);
-  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
-  const stepLabel = mode === "ladder" ? "Сходинка" : "Підхід";
-
-  return `
-    <div class="card">
-      <h3>${escapeHtml(activeWorkout.program.name)}</h3>
-      <div class="step">
-        <p class="muted">Поточна вправа</p>
-        <h4>${escapeHtml(currentExercise.name)}</h4>
-        <p>Режим: ${mode === "ladder" ? "Сходинка" : "Підходи"}</p>
-        <p>${stepLabel}: ${currentStep.position} з ${currentStep.total}</p>
-        <p>Повторення: ${currentStep.reps}</p>
-        <p>Вага: ${formatWeight(currentExercise.weight)}</p>
-        <p>Відпочинок: ${currentExercise.restTime} с</p>
-        <button class="action" type="button" data-training-action="complete-workout-step">
-          Виконано
-        </button>
-        <button class="secondaryAction" type="button" data-training-action="cancel-workout">
-          Скасувати тренування
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-function renderWorkoutStepConfirmation(exercise) {
-  const confirmation = activeWorkout.confirmation;
-
-  return `
-    <div class="card">
-      <h3>Підтвердження підходу</h3>
-      <div class="step">
-        <p class="muted">Вправа</p>
-        <h4>${escapeHtml(exercise.name)}</h4>
-        <p>${confirmation.stepLabel}: ${confirmation.position} з ${confirmation.total}</p>
-        <label>
-          <span class="muted">Повторення</span>
-          <input id="confirmedStepReps" type="number" min="0" value="${confirmation.reps}">
-        </label>
-        <label>
-          <span class="muted">Вага</span>
-          <input id="confirmedStepWeight" type="number" min="0" step="0.5" value="${escapeAttribute(confirmation.weight)}">
-        </label>
-        <button class="action" type="button" data-training-action="confirm-workout-step">
-          Підтвердити
-        </button>
-        <button class="secondaryAction" type="button" data-training-action="fail-workout-step">
-          Не виконав
-        </button>
-        <button class="secondaryAction" type="button" data-training-action="back-to-workout-step">
-          Назад
-        </button>
-      </div>
-    </div>
-  `;
-}
-
-function renderWorkoutRest() {
-  return `
-    <div class="card">
-      <h3>${escapeHtml(activeWorkout.rest.exerciseName)}</h3>
-      <div class="step">
-        <p class="muted">Відпочинок</p>
-        <h4>${activeWorkout.rest.secondsLeft} с</h4>
-        <button class="action" type="button" data-training-action="skip-rest">
-          Пропустити
-        </button>
-        <button class="secondaryAction" type="button" data-training-action="cancel-workout">
-          Скасувати тренування
-        </button>
-      </div>
     </div>
   `;
 }
@@ -591,15 +499,7 @@ function startWorkout(programId) {
     return;
   }
 
-  activeWorkout = {
-    program,
-    exerciseIndex: 0,
-    stepIndex: 0,
-    rest: null,
-    confirmation: null,
-    completedSteps: []
-  };
-
+  activeWorkout = createActiveWorkout(program);
   savedWorkoutState = null;
   restoreMessage = "";
   saveActiveWorkoutState();
@@ -623,21 +523,14 @@ function continueSavedWorkout() {
     return;
   }
 
-  activeWorkout = {
-    program,
-    exerciseIndex: savedWorkoutState.exerciseIndex,
-    stepIndex: savedWorkoutState.stepIndex,
-    rest: savedWorkoutState.rest,
-    confirmation: null,
-    completedSteps: savedWorkoutState.completedSteps || []
-  };
+  activeWorkout = restoreActiveWorkout(program, savedWorkoutState);
   savedWorkoutState = null;
   restoreMessage = "";
   saveActiveWorkoutState();
   refreshTrainingContent();
 
   if (activeWorkout.rest) {
-    startRestCountdown();
+    startRestCountdown(getTrainingContext());
   }
 }
 
@@ -655,7 +548,7 @@ function completeWorkoutStep() {
     return;
   }
 
-  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+  const currentExercise = getCurrentExercise(activeWorkout);
 
   if (!currentExercise) {
     clearSavedActiveWorkout();
@@ -663,20 +556,7 @@ function completeWorkoutStep() {
     return;
   }
 
-  const mode = getExerciseMode(currentExercise);
-  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
-
-  activeWorkout = {
-    ...activeWorkout,
-    confirmation: {
-      stepLabel: mode === "ladder" ? "Сходинка" : "Підхід",
-      position: currentStep.position,
-      total: currentStep.total,
-      reps: currentStep.reps,
-      weight: currentExercise.weight
-    }
-  };
-
+  activeWorkout = createWorkoutStepConfirmation(activeWorkout);
   refreshTrainingContent();
 }
 
@@ -685,7 +565,7 @@ function saveConfirmedWorkoutStep(failed) {
     return;
   }
 
-  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+  const currentExercise = getCurrentExercise(activeWorkout);
 
   if (!currentExercise) {
     clearSavedActiveWorkout();
@@ -695,28 +575,16 @@ function saveConfirmedWorkoutStep(failed) {
 
   const repsInput = document.getElementById("confirmedStepReps");
   const weightInput = document.getElementById("confirmedStepWeight");
-  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
 
-  activeWorkout = {
-    ...activeWorkout,
-    confirmation: null,
-    completedSteps: [
-      ...(activeWorkout.completedSteps || []),
-      {
-        exerciseIndex: activeWorkout.exerciseIndex,
-        stepIndex: activeWorkout.stepIndex,
-        exerciseName: currentExercise.name,
-        mode: getExerciseMode(currentExercise),
-        position: currentStep.position,
-        reps: toNumber(repsInput?.value, currentStep.reps),
-        weight: toNumber(weightInput?.value, toNumber(currentExercise.weight, 0)),
-        failed
-      }
-    ]
-  };
+  activeWorkout = buildConfirmedWorkoutState(
+    activeWorkout,
+    failed,
+    repsInput?.value,
+    weightInput?.value
+  );
 
   saveActiveWorkoutState();
-  startRestTimer(currentExercise);
+  startRestTimer(currentExercise, getTrainingContext());
 }
 
 function backToWorkoutStep() {
@@ -724,70 +592,8 @@ function backToWorkoutStep() {
     return;
   }
 
-  activeWorkout = {
-    ...activeWorkout,
-    confirmation: null
-  };
-
+  activeWorkout = buildWorkoutBackState(activeWorkout);
   refreshTrainingContent();
-}
-
-function startRestTimer(exercise) {
-  stopRestTimer();
-
-  if (!activeWorkout) {
-    return;
-  }
-
-  activeWorkout = {
-    ...activeWorkout,
-    rest: {
-      exerciseName: exercise.name,
-      secondsLeft: Math.max(0, toNumber(exercise.restTime, 0))
-    }
-  };
-
-  refreshTrainingContent();
-  saveActiveWorkoutState();
-
-  if (activeWorkout.rest.secondsLeft <= 0) {
-    restTimerId = window.setTimeout(finishRestAndAdvance, 0);
-    return;
-  }
-
-  startRestCountdown();
-}
-
-function startRestCountdown() {
-  stopRestTimer();
-
-  if (!activeWorkout?.rest) {
-    return;
-  }
-
-  restTimerId = window.setInterval(() => {
-    if (!activeWorkout?.rest) {
-      stopRestTimer();
-      return;
-    }
-
-    const secondsLeft = Math.max(0, activeWorkout.rest.secondsLeft - 1);
-
-    activeWorkout = {
-      ...activeWorkout,
-      rest: {
-        ...activeWorkout.rest,
-        secondsLeft
-      }
-    };
-
-    refreshTrainingContent();
-    saveActiveWorkoutState();
-
-    if (secondsLeft <= 0) {
-      finishRestAndAdvance();
-    }
-  }, 1000);
 }
 
 function finishRestAndAdvance() {
@@ -797,51 +603,19 @@ function finishRestAndAdvance() {
   }
 
   stopRestTimer();
-  advanceWorkoutStep();
+  advanceActiveWorkoutStep();
   saveActiveWorkoutState();
 }
 
-function advanceWorkoutStep() {
+function advanceActiveWorkoutStep() {
   if (!activeWorkout) {
     return;
   }
 
-  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+  const result = calculateNextWorkoutState(activeWorkout);
+  activeWorkout = result.activeWorkout;
 
-  if (!currentExercise) {
-    activeWorkout = {
-      ...activeWorkout,
-      rest: null
-    };
-    clearSavedActiveWorkout();
-    refreshTrainingContent();
-    return;
-  }
-
-  const totalSteps = getWorkoutStepCount(currentExercise);
-  const nextStepIndex = activeWorkout.stepIndex + 1;
-
-  if (nextStepIndex < totalSteps) {
-    activeWorkout = {
-      ...activeWorkout,
-      stepIndex: nextStepIndex,
-      rest: null
-    };
-    saveActiveWorkoutState();
-    refreshTrainingContent();
-    return;
-  }
-
-  const nextExerciseIndex = activeWorkout.exerciseIndex + 1;
-
-  activeWorkout = {
-    ...activeWorkout,
-    exerciseIndex: nextExerciseIndex,
-    stepIndex: 0,
-    rest: null
-  };
-
-  if (nextExerciseIndex >= activeWorkout.program.exercises.length) {
+  if (result.shouldClearSavedWorkout) {
     clearSavedActiveWorkout();
   } else {
     saveActiveWorkoutState();
@@ -850,40 +624,20 @@ function advanceWorkoutStep() {
   refreshTrainingContent();
 }
 
-function stopRestTimer() {
-  if (!restTimerId) {
-    return;
-  }
-
-  window.clearInterval(restTimerId);
-  window.clearTimeout(restTimerId);
-  restTimerId = null;
-}
-
 function saveActiveWorkoutState() {
-  if (!activeWorkout) {
-    return;
-  }
-
-  localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify({
-    programId: activeWorkout.program.id,
-    exerciseIndex: activeWorkout.exerciseIndex,
-    stepIndex: activeWorkout.stepIndex,
-    rest: activeWorkout.rest,
-    completedSteps: activeWorkout.completedSteps || []
-  }));
+  persistActiveWorkoutState(activeWorkout);
 }
 
-function loadSavedActiveWorkoutState() {
-  try {
-    return JSON.parse(localStorage.getItem(ACTIVE_WORKOUT_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function clearSavedActiveWorkout() {
-  localStorage.removeItem(ACTIVE_WORKOUT_KEY);
+function getTrainingContext() {
+  return {
+    getActiveWorkout: () => activeWorkout,
+    setActiveWorkout: (nextActiveWorkout) => {
+      activeWorkout = nextActiveWorkout;
+    },
+    refreshTrainingContent,
+    saveActiveWorkoutState,
+    finishRestAndAdvance
+  };
 }
 
 function updateProgramField(input) {
@@ -959,51 +713,12 @@ function updateExerciseField(exercise, input) {
   return exercise;
 }
 
-function getExerciseMode(exercise) {
-  return exercise.mode || "sets";
-}
-
-function getWorkoutStepCount(exercise) {
-  if (getExerciseMode(exercise) === "ladder") {
-    const from = toNumber(exercise.ladderFrom, 1);
-    const to = toNumber(exercise.ladderTo, from);
-
-    return Math.abs(to - from) + 1;
-  }
-
-  return Math.max(1, toNumber(exercise.sets, 1));
-}
-
-function getCurrentWorkoutStep(exercise, stepIndex) {
-  if (getExerciseMode(exercise) === "ladder") {
-    const from = toNumber(exercise.ladderFrom, 1);
-    const to = toNumber(exercise.ladderTo, from);
-    const direction = to >= from ? 1 : -1;
-
-    return {
-      position: stepIndex + 1,
-      total: getWorkoutStepCount(exercise),
-      reps: from + stepIndex * direction
-    };
-  }
-
-  return {
-    position: stepIndex + 1,
-    total: getWorkoutStepCount(exercise),
-    reps: toNumber(exercise.reps, 1)
-  };
-}
-
 function renderExerciseSummary(exercise) {
   if (getExerciseMode(exercise) === "ladder") {
     return `Сходинка: ${exercise.ladderFrom ?? 1} → ${exercise.ladderTo ?? 5} • ${formatWeight(exercise.weight)} • ${exercise.restTime} с`;
   }
 
   return `Підходи: ${exercise.sets} × ${exercise.reps} • ${formatWeight(exercise.weight)} • ${exercise.restTime} с`;
-}
-
-function formatWeight(weight) {
-  return weight === "" ? "0 кг" : `${weight} кг`;
 }
 
 function refreshTrainingContent() {
@@ -1020,25 +735,4 @@ function focusCreateProgramInput() {
   requestAnimationFrame(() => {
     document.getElementById("newProgramName")?.focus();
   });
-}
-
-function toNumber(value, fallback) {
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : fallback;
-}
-
-function escapeAttribute(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }
