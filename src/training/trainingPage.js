@@ -163,18 +163,7 @@ function renderTrainingContent() {
 
   return `
     <div class="grid">
-      ${renderStartWorkoutSection()}
       ${renderProgramsSection()}
-    </div>
-  `;
-}
-
-function renderStartWorkoutSection() {
-  return `
-    <div class="card">
-      <h3>Старт тренування</h3>
-      <p class="muted">Кнопка підготовлена для наступного етапу. Логіка тренування ще не запускається.</p>
-      <button class="action" type="button">Почати тренування</button>
     </div>
   `;
 }
