@@ -34,6 +34,7 @@ function checkForUpdates() {
 
   autoUpdater.checkForUpdates().catch((error) => {
     console.error("Update check failed:", error);
+    showUpdateError("Не вдалося перевірити оновлення.");
   });
 }
 
@@ -50,7 +51,7 @@ autoUpdater.on("update-available", async () => {
     defaultId: 0,
     cancelId: 1,
     title: "Оновлення MR Stats",
-    message: "Доступна нова версія. Оновити зараз?"
+    message: "Оновлення доступне. Завантажити зараз?"
   });
 
   if (result.response !== 0) {
@@ -88,7 +89,7 @@ autoUpdater.on("update-downloaded", async () => {
     defaultId: 0,
     cancelId: 1,
     title: "Оновлення MR Stats",
-    message: "Оновлення завантажено. Перезапустити програму?"
+    message: "Оновлення готове. Перезапустити MR Stats зараз?"
   });
 
   if (result.response === 0) {
@@ -103,6 +104,7 @@ autoUpdater.on("error", (error) => {
   }
 
   console.error("Auto updater error:", error);
+  showUpdateError("Не вдалося перевірити оновлення.");
 });
 
 function handleUpdateDownloadError(error) {
@@ -124,7 +126,16 @@ function handleUpdateDownloadError(error) {
     type: "error",
     buttons: ["OK"],
     title: "Оновлення MR Stats",
-    message: "Не вдалося завантажити оновлення."
+    message: "Помилка оновлення. Не вдалося завантажити оновлення."
+  });
+}
+
+function showUpdateError(message) {
+  dialog.showMessageBox(mainWindow, {
+    type: "error",
+    buttons: ["OK"],
+    title: "Оновлення MR Stats",
+    message: `Помилка оновлення. ${message}`
   });
 }
 
