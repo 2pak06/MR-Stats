@@ -63,6 +63,18 @@ document.addEventListener("click", (event) => {
     completeWorkoutStep();
   }
 
+  if (action === "confirm-workout-step") {
+    saveConfirmedWorkoutStep(false);
+  }
+
+  if (action === "fail-workout-step") {
+    saveConfirmedWorkoutStep(true);
+  }
+
+  if (action === "back-to-workout-step") {
+    backToWorkoutStep();
+  }
+
   if (action === "skip-rest") {
     finishRestAndAdvance();
   }
@@ -226,6 +238,10 @@ function renderProgram(program) {
 function renderActiveWorkout() {
   const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
 
+  if (activeWorkout.confirmation) {
+    return renderWorkoutStepConfirmation(currentExercise);
+  }
+
   if (activeWorkout.rest) {
     return renderWorkoutRest();
   }
@@ -261,6 +277,38 @@ function renderActiveWorkout() {
         </button>
         <button class="secondaryAction" type="button" data-training-action="cancel-workout">
           Скасувати тренування
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderWorkoutStepConfirmation(exercise) {
+  const confirmation = activeWorkout.confirmation;
+
+  return `
+    <div class="card">
+      <h3>Підтвердження підходу</h3>
+      <div class="step">
+        <p class="muted">Вправа</p>
+        <h4>${escapeHtml(exercise.name)}</h4>
+        <p>${confirmation.stepLabel}: ${confirmation.position} з ${confirmation.total}</p>
+        <label>
+          <span class="muted">Повторення</span>
+          <input id="confirmedStepReps" type="number" min="0" value="${confirmation.reps}">
+        </label>
+        <label>
+          <span class="muted">Вага</span>
+          <input id="confirmedStepWeight" type="number" min="0" step="0.5" value="${escapeAttribute(confirmation.weight)}">
+        </label>
+        <button class="action" type="button" data-training-action="confirm-workout-step">
+          Підтвердити
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="fail-workout-step">
+          Не виконав
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="back-to-workout-step">
+          Назад
         </button>
       </div>
     </div>
@@ -547,7 +595,9 @@ function startWorkout(programId) {
     program,
     exerciseIndex: 0,
     stepIndex: 0,
-    rest: null
+    rest: null,
+    confirmation: null,
+    completedSteps: []
   };
 
   savedWorkoutState = null;
@@ -577,7 +627,9 @@ function continueSavedWorkout() {
     program,
     exerciseIndex: savedWorkoutState.exerciseIndex,
     stepIndex: savedWorkoutState.stepIndex,
-    rest: savedWorkoutState.rest
+    rest: savedWorkoutState.rest,
+    confirmation: null,
+    completedSteps: savedWorkoutState.completedSteps || []
   };
   savedWorkoutState = null;
   restoreMessage = "";
@@ -611,7 +663,73 @@ function completeWorkoutStep() {
     return;
   }
 
+  const mode = getExerciseMode(currentExercise);
+  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
+
+  activeWorkout = {
+    ...activeWorkout,
+    confirmation: {
+      stepLabel: mode === "ladder" ? "Сходинка" : "Підхід",
+      position: currentStep.position,
+      total: currentStep.total,
+      reps: currentStep.reps,
+      weight: currentExercise.weight
+    }
+  };
+
+  refreshTrainingContent();
+}
+
+function saveConfirmedWorkoutStep(failed) {
+  if (!activeWorkout) {
+    return;
+  }
+
+  const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
+
+  if (!currentExercise) {
+    clearSavedActiveWorkout();
+    refreshTrainingContent();
+    return;
+  }
+
+  const repsInput = document.getElementById("confirmedStepReps");
+  const weightInput = document.getElementById("confirmedStepWeight");
+  const currentStep = getCurrentWorkoutStep(currentExercise, activeWorkout.stepIndex);
+
+  activeWorkout = {
+    ...activeWorkout,
+    confirmation: null,
+    completedSteps: [
+      ...(activeWorkout.completedSteps || []),
+      {
+        exerciseIndex: activeWorkout.exerciseIndex,
+        stepIndex: activeWorkout.stepIndex,
+        exerciseName: currentExercise.name,
+        mode: getExerciseMode(currentExercise),
+        position: currentStep.position,
+        reps: toNumber(repsInput?.value, currentStep.reps),
+        weight: toNumber(weightInput?.value, toNumber(currentExercise.weight, 0)),
+        failed
+      }
+    ]
+  };
+
+  saveActiveWorkoutState();
   startRestTimer(currentExercise);
+}
+
+function backToWorkoutStep() {
+  if (!activeWorkout) {
+    return;
+  }
+
+  activeWorkout = {
+    ...activeWorkout,
+    confirmation: null
+  };
+
+  refreshTrainingContent();
 }
 
 function startRestTimer(exercise) {
@@ -751,7 +869,8 @@ function saveActiveWorkoutState() {
     programId: activeWorkout.program.id,
     exerciseIndex: activeWorkout.exerciseIndex,
     stepIndex: activeWorkout.stepIndex,
-    rest: activeWorkout.rest
+    rest: activeWorkout.rest,
+    completedSteps: activeWorkout.completedSteps || []
   }));
 }
 
