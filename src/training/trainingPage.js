@@ -5,7 +5,11 @@ import {
   saveWorkoutPrograms
 } from "./programStorage.js";
 
+const ACTIVE_WORKOUT_KEY = "mr_training_active_workout";
+
 let isCreateProgramFormOpen = false;
+let savedWorkoutState = loadSavedActiveWorkoutState();
+let restoreMessage = "";
 let activeWorkout = null;
 let restTimerId = null;
 
@@ -47,6 +51,14 @@ document.addEventListener("click", (event) => {
     startWorkout(actionElement.dataset.programId);
   }
 
+  if (action === "continue-workout") {
+    continueSavedWorkout();
+  }
+
+  if (action === "reset-saved-workout") {
+    resetSavedWorkout();
+  }
+
   if (action === "complete-workout-step") {
     completeWorkoutStep();
   }
@@ -58,6 +70,7 @@ document.addEventListener("click", (event) => {
   if (action === "cancel-workout") {
     stopRestTimer();
     activeWorkout = null;
+    clearSavedActiveWorkout();
     refreshTrainingContent();
   }
 
@@ -109,10 +122,31 @@ function renderTrainingContent() {
     return renderActiveWorkout();
   }
 
+  if (savedWorkoutState || restoreMessage) {
+    return renderSavedWorkoutPrompt();
+  }
+
   return `
     <div class="grid">
       ${renderStartWorkoutSection()}
       ${renderProgramsSection()}
+    </div>
+  `;
+}
+
+function renderSavedWorkoutPrompt() {
+  return `
+    <div class="card">
+      <h3>Тренування</h3>
+      ${restoreMessage ? `<p class="muted">${escapeHtml(restoreMessage)}</p>` : '<p class="muted">Є незавершене тренування.</p>'}
+      ${savedWorkoutState ? `
+        <button class="action" type="button" data-training-action="continue-workout">
+          Продовжити тренування
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="reset-saved-workout">
+          Скинути тренування
+        </button>
+      ` : ""}
     </div>
   `;
 }
@@ -516,6 +550,51 @@ function startWorkout(programId) {
     rest: null
   };
 
+  savedWorkoutState = null;
+  restoreMessage = "";
+  saveActiveWorkoutState();
+  refreshTrainingContent();
+}
+
+function continueSavedWorkout() {
+  if (!savedWorkoutState) {
+    return;
+  }
+
+  const program = loadWorkoutPrograms().find((item) => item.id === savedWorkoutState.programId);
+
+  if (!program) {
+    stopRestTimer();
+    activeWorkout = null;
+    savedWorkoutState = null;
+    restoreMessage = "Програму видалено. Тренування не відновлено.";
+    clearSavedActiveWorkout();
+    refreshTrainingContent();
+    return;
+  }
+
+  activeWorkout = {
+    program,
+    exerciseIndex: savedWorkoutState.exerciseIndex,
+    stepIndex: savedWorkoutState.stepIndex,
+    rest: savedWorkoutState.rest
+  };
+  savedWorkoutState = null;
+  restoreMessage = "";
+  saveActiveWorkoutState();
+  refreshTrainingContent();
+
+  if (activeWorkout.rest) {
+    startRestCountdown();
+  }
+}
+
+function resetSavedWorkout() {
+  stopRestTimer();
+  activeWorkout = null;
+  savedWorkoutState = null;
+  restoreMessage = "";
+  clearSavedActiveWorkout();
   refreshTrainingContent();
 }
 
@@ -527,6 +606,7 @@ function completeWorkoutStep() {
   const currentExercise = activeWorkout.program.exercises[activeWorkout.exerciseIndex];
 
   if (!currentExercise) {
+    clearSavedActiveWorkout();
     refreshTrainingContent();
     return;
   }
@@ -550,9 +630,20 @@ function startRestTimer(exercise) {
   };
 
   refreshTrainingContent();
+  saveActiveWorkoutState();
 
   if (activeWorkout.rest.secondsLeft <= 0) {
     restTimerId = window.setTimeout(finishRestAndAdvance, 0);
+    return;
+  }
+
+  startRestCountdown();
+}
+
+function startRestCountdown() {
+  stopRestTimer();
+
+  if (!activeWorkout?.rest) {
     return;
   }
 
@@ -573,6 +664,7 @@ function startRestTimer(exercise) {
     };
 
     refreshTrainingContent();
+    saveActiveWorkoutState();
 
     if (secondsLeft <= 0) {
       finishRestAndAdvance();
@@ -588,6 +680,7 @@ function finishRestAndAdvance() {
 
   stopRestTimer();
   advanceWorkoutStep();
+  saveActiveWorkoutState();
 }
 
 function advanceWorkoutStep() {
@@ -602,6 +695,7 @@ function advanceWorkoutStep() {
       ...activeWorkout,
       rest: null
     };
+    clearSavedActiveWorkout();
     refreshTrainingContent();
     return;
   }
@@ -615,16 +709,25 @@ function advanceWorkoutStep() {
       stepIndex: nextStepIndex,
       rest: null
     };
+    saveActiveWorkoutState();
     refreshTrainingContent();
     return;
   }
 
+  const nextExerciseIndex = activeWorkout.exerciseIndex + 1;
+
   activeWorkout = {
     ...activeWorkout,
-    exerciseIndex: activeWorkout.exerciseIndex + 1,
+    exerciseIndex: nextExerciseIndex,
     stepIndex: 0,
     rest: null
   };
+
+  if (nextExerciseIndex >= activeWorkout.program.exercises.length) {
+    clearSavedActiveWorkout();
+  } else {
+    saveActiveWorkoutState();
+  }
 
   refreshTrainingContent();
 }
@@ -637,6 +740,31 @@ function stopRestTimer() {
   window.clearInterval(restTimerId);
   window.clearTimeout(restTimerId);
   restTimerId = null;
+}
+
+function saveActiveWorkoutState() {
+  if (!activeWorkout) {
+    return;
+  }
+
+  localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify({
+    programId: activeWorkout.program.id,
+    exerciseIndex: activeWorkout.exerciseIndex,
+    stepIndex: activeWorkout.stepIndex,
+    rest: activeWorkout.rest
+  }));
+}
+
+function loadSavedActiveWorkoutState() {
+  try {
+    return JSON.parse(localStorage.getItem(ACTIVE_WORKOUT_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function clearSavedActiveWorkout() {
+  localStorage.removeItem(ACTIVE_WORKOUT_KEY);
 }
 
 function updateProgramField(input) {
