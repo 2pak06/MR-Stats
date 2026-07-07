@@ -145,6 +145,10 @@ function handleTrainingFieldChange(event) {
 export function renderTrainingPage() {
   return `
     <section class="page" id="training">
+      <div class="trainingIntro card">
+        <h3>💪 Тренування</h3>
+        <p class="muted">Створюй програми, запускай тренування, підтверджуй підходи та повертайся до незавершеного заняття після перезапуску.</p>
+      </div>
       <div id="trainingContent">
         ${renderTrainingContent()}
       </div>

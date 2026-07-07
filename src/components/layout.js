@@ -1,3 +1,4 @@
+import { APP_VERSION } from "../config/appInfo.js";
 import { renderNavigation } from "./navigation.js";
 
 export function renderLayout({ todayKey, pages }) {
@@ -8,7 +9,7 @@ export function renderLayout({ todayKey, pages }) {
           <div class="logoIcon">📊</div>
           <div>
             <h1>MR Stats</h1>
-            <p>v0.5.0 foundation</p>
+            <p>v${APP_VERSION}</p>
           </div>
         </div>
 

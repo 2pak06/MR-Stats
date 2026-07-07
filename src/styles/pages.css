@@ -141,6 +141,27 @@
   gap: 8px;
 }
 
+.trainingIntro {
+  margin-bottom: 14px;
+}
+
+.trainingIntro h3 {
+  margin-bottom: 6px;
+}
+
+.trainingIntro p {
+  margin-bottom: 0;
+}
+
+.changelogBlock {
+  margin-top: 14px;
+}
+
+.changelogBlock ul {
+  margin-bottom: 0;
+  padding-left: 20px;
+}
+
 .recipeControls {
   display: flex;
   justify-content: space-between;
