@@ -4,7 +4,7 @@ import {
   loadWorkoutPrograms,
   saveWorkoutPrograms
 } from "./programStorage.js";
-import { escapeAttribute, formatWeight } from "./workoutFormat.js";
+import { escapeAttribute, escapeHtml, formatWeight } from "./workoutFormat.js";
 import {
   backToWorkoutStep as buildWorkoutBackState,
   buildConfirmedWorkoutState,
@@ -30,11 +30,14 @@ import {
   startRestTimer,
   stopRestTimer
 } from "./workoutTimer.js";
+import { stopTimerFinishedSignal } from "../utils/timerSound.js";
 
 let isCreateProgramFormOpen = false;
 let savedWorkoutState = loadSavedActiveWorkoutState();
 let restoreMessage = "";
 let activeWorkout = null;
+let trainingMessage = "";
+let expandedExerciseIds = new Set();
 
 document.addEventListener("click", (event) => {
   const target = event.target;
@@ -50,6 +53,7 @@ document.addEventListener("click", (event) => {
   }
 
   const action = actionElement.dataset.trainingAction;
+  stopTimerFinishedSignal();
 
   if (action === "open-create-program") {
     isCreateProgramFormOpen = true;
@@ -68,6 +72,22 @@ document.addEventListener("click", (event) => {
 
   if (action === "delete-program") {
     deleteProgram(actionElement.dataset.programId);
+  }
+
+  if (action === "toggle-exercise-expanded") {
+    toggleExerciseExpanded(actionElement.dataset.exerciseId);
+  }
+
+  if (action === "select-all-exercises") {
+    updateProgramExerciseSelection(actionElement.dataset.programId, "select");
+  }
+
+  if (action === "clear-all-exercises") {
+    updateProgramExerciseSelection(actionElement.dataset.programId, "clear");
+  }
+
+  if (action === "invert-exercise-selection") {
+    updateProgramExerciseSelection(actionElement.dataset.programId, "invert");
   }
 
   if (action === "start-program") {
@@ -180,6 +200,7 @@ function renderProgramsSection() {
       <h3>Програми</h3>
       <button class="action" type="button" data-training-action="open-create-program">Створити програму</button>
       <br><br>
+      ${trainingMessage ? `<p class="warn">${escapeHtml(trainingMessage)}</p>` : ""}
       ${isCreateProgramFormOpen ? renderCreateProgramForm() : ""}
       ${programs.length ? programs.map(renderProgram).join("") : '<p class="muted">Поки немає програм тренувань.</p>'}
     </div>
@@ -201,8 +222,8 @@ function renderCreateProgramForm() {
 
 function renderProgram(program) {
   return `
-    <div class="step">
-      <label>
+    <div class="step trainingProgramCard">
+      <label class="programNameField">
         <span class="muted">Назва програми</span>
         <input
           type="text"
@@ -212,24 +233,41 @@ function renderProgram(program) {
         >
       </label>
 
-      <h4>Вправи</h4>
+      <div class="programHeader">
+        <h4>Вправи</h4>
+      </div>
+      ${program.exercises.length ? `
+        <div class="exerciseSelectionActions">
+          <button class="secondaryAction compactAction" type="button" data-training-action="select-all-exercises" data-program-id="${program.id}">
+            Вибрати всі
+          </button>
+          <button class="secondaryAction compactAction" type="button" data-training-action="clear-all-exercises" data-program-id="${program.id}">
+            Зняти всі
+          </button>
+          <button class="secondaryAction compactAction" type="button" data-training-action="invert-exercise-selection" data-program-id="${program.id}">
+            Інвертувати вибір
+          </button>
+        </div>
+      ` : ""}
       ${program.exercises.length ? program.exercises.map((exercise) => renderExercise(program.id, exercise)).join("") : '<p class="muted">Додай першу вправу до програми.</p>'}
 
-      <button class="secondaryAction" type="button" data-training-action="add-exercise" data-program-id="${program.id}">
-        Додати вправу
-      </button>
-      <button class="secondaryAction" type="button" data-training-action="delete-program" data-program-id="${program.id}">
-        Видалити програму
-      </button>
-      <button
-        class="action"
-        type="button"
-        data-training-action="start-program"
-        data-program-id="${program.id}"
-        ${program.exercises.length ? "" : "disabled"}
-      >
-        Почати тренування
-      </button>
+      <div class="programActions">
+        <button class="secondaryAction" type="button" data-training-action="add-exercise" data-program-id="${program.id}">
+          Додати вправу
+        </button>
+        <button class="secondaryAction" type="button" data-training-action="delete-program" data-program-id="${program.id}">
+          Видалити програму
+        </button>
+        <button
+          class="action"
+          type="button"
+          data-training-action="start-program"
+          data-program-id="${program.id}"
+          ${program.exercises.length ? "" : "disabled"}
+        >
+          Почати тренування
+        </button>
+      </div>
     </div>
   `;
 }
@@ -307,41 +345,68 @@ function renderLegacyExercise(programId, exercise) {
 
 function renderExercise(programId, exercise) {
   const mode = getExerciseMode(exercise);
+  const isExpanded = expandedExerciseIds.has(exercise.id);
+  const isSelected = isExerciseSelected(exercise);
 
   return `
-    <div class="step">
-      <label>
-        <span class="muted">Назва вправи</span>
-        <input
-          type="text"
-          value="${escapeAttribute(exercise.name)}"
-          data-training-field="exercise-name"
-          data-program-id="${programId}"
+    <div class="step trainingExercise ${isSelected ? "" : "trainingExerciseMuted"}">
+      <div class="exerciseHeader">
+        <button
+          class="secondaryAction exerciseToggle"
+          type="button"
+          data-training-action="toggle-exercise-expanded"
           data-exercise-id="${exercise.id}"
+          aria-label="${isExpanded ? "Згорнути вправу" : "Розгорнути вправу"}"
         >
-      </label>
-      <label>
-        <span class="muted">Режим</span>
-        <select
-          data-training-field="exercise-mode"
-          data-program-id="${programId}"
-          data-exercise-id="${exercise.id}"
-        >
-          <option value="sets" ${mode === "sets" ? "selected" : ""}>Підходи</option>
-          <option value="ladder" ${mode === "ladder" ? "selected" : ""}>Сходинка</option>
-        </select>
-      </label>
-      <p class="muted">${renderExerciseSummary(exercise)}</p>
-      ${mode === "sets" ? renderSetsExerciseFields(programId, exercise) : renderLadderExerciseFields(programId, exercise)}
-      <button
-        class="secondaryAction"
-        type="button"
-        data-training-action="remove-exercise"
-        data-program-id="${programId}"
-        data-exercise-id="${exercise.id}"
-      >
-        Прибрати вправу
-      </button>
+          ${isExpanded ? "▼" : "▶"}
+        </button>
+        <label class="exerciseSelectLabel">
+          <input
+            type="checkbox"
+            ${isSelected ? "checked" : ""}
+            data-training-field="exercise-selected"
+            data-program-id="${programId}"
+            data-exercise-id="${exercise.id}"
+          >
+          <span class="exerciseName">${escapeHtml(exercise.name)}</span>
+        </label>
+      </div>
+      ${isExpanded ? `
+        <div class="exerciseDetails">
+          <label>
+            <span class="muted">Назва вправи</span>
+            <input
+              type="text"
+              value="${escapeAttribute(exercise.name)}"
+              data-training-field="exercise-name"
+              data-program-id="${programId}"
+              data-exercise-id="${exercise.id}"
+            >
+          </label>
+          <label>
+            <span class="muted">Режим</span>
+            <select
+              data-training-field="exercise-mode"
+              data-program-id="${programId}"
+              data-exercise-id="${exercise.id}"
+            >
+              <option value="sets" ${mode === "sets" ? "selected" : ""}>Підходи</option>
+              <option value="ladder" ${mode === "ladder" ? "selected" : ""}>Сходинка</option>
+            </select>
+          </label>
+          <p class="muted">${renderExerciseSummary(exercise)}</p>
+          ${mode === "sets" ? renderSetsExerciseFields(programId, exercise) : renderLadderExerciseFields(programId, exercise)}
+          <button
+            class="secondaryAction"
+            type="button"
+            data-training-action="remove-exercise"
+            data-program-id="${programId}"
+            data-exercise-id="${exercise.id}"
+          >
+            Прибрати вправу
+          </button>
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -469,6 +534,8 @@ function addExercise(programId) {
 }
 
 function removeExercise(programId, exerciseId) {
+  expandedExerciseIds.delete(exerciseId);
+
   const programs = loadWorkoutPrograms().map((program) => {
     if (program.id !== programId) {
       return program;
@@ -484,6 +551,25 @@ function removeExercise(programId, exerciseId) {
   refreshTrainingContent();
 }
 
+function updateProgramExerciseSelection(programId, mode) {
+  const programs = loadWorkoutPrograms().map((program) => {
+    if (program.id !== programId) {
+      return program;
+    }
+
+    return {
+      ...program,
+      exercises: program.exercises.map((exercise) => ({
+        ...exercise,
+        selected: getNextExerciseSelection(exercise, mode)
+      }))
+    };
+  });
+
+  saveWorkoutPrograms(programs);
+  refreshTrainingContent();
+}
+
 function startWorkout(programId) {
   stopRestTimer();
   const program = loadWorkoutPrograms().find((item) => item.id === programId);
@@ -492,9 +578,21 @@ function startWorkout(programId) {
     return;
   }
 
-  activeWorkout = createActiveWorkout(program);
+  const selectedExercises = program.exercises.filter(isExerciseSelected);
+
+  if (!selectedExercises.length) {
+    trainingMessage = "Оберіть хоча б одну вправу для запуску тренування.";
+    refreshTrainingContent();
+    return;
+  }
+
+  activeWorkout = createActiveWorkout({
+    ...program,
+    exercises: selectedExercises
+  });
   savedWorkoutState = null;
   restoreMessage = "";
+  trainingMessage = "";
   saveActiveWorkoutState();
   refreshTrainingContent();
 }
@@ -595,7 +693,7 @@ function finishRestAndAdvance() {
     return;
   }
 
-  stopRestTimer();
+  stopRestTimer({ stopSignal: false });
   advanceActiveWorkoutStep();
   saveActiveWorkoutState();
 }
@@ -662,6 +760,10 @@ function updateExerciseField(exercise, input) {
 
   const field = input.dataset.trainingField;
 
+  if (field === "exercise-selected") {
+    return { ...exercise, selected: input.checked };
+  }
+
   if (field === "exercise-name") {
     return { ...exercise, name: input.value };
   }
@@ -704,6 +806,36 @@ function updateExerciseField(exercise, input) {
   }
 
   return exercise;
+}
+
+function toggleExerciseExpanded(exerciseId) {
+  if (!exerciseId) {
+    return;
+  }
+
+  if (expandedExerciseIds.has(exerciseId)) {
+    expandedExerciseIds.delete(exerciseId);
+  } else {
+    expandedExerciseIds.add(exerciseId);
+  }
+
+  refreshTrainingContent();
+}
+
+function isExerciseSelected(exercise) {
+  return exercise.selected !== false;
+}
+
+function getNextExerciseSelection(exercise, mode) {
+  if (mode === "select") {
+    return true;
+  }
+
+  if (mode === "clear") {
+    return false;
+  }
+
+  return !isExerciseSelected(exercise);
 }
 
 function renderExerciseSummary(exercise) {

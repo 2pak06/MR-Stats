@@ -1,5 +1,9 @@
 import { recipes, getRecipeById } from "../recipes/recipeDatabase.js";
 import { loadRecipeProgress, saveRecipeProgress } from "../storage/localStorage.js";
+import {
+  startTimerFinishedSignal,
+  stopTimerFinishedSignal
+} from "../utils/timerSound.js";
 import { escapeHtml } from "../utils/html.js";
 
 const FAVORITES_KEY = "mr_recipe_favorites";
@@ -9,6 +13,7 @@ const emptyProgress = {
   remainingSeconds: null,
   isTimerPaused: false,
   isTimerRunning: false,
+  isTimerAlarmActive: false,
   completedSteps: []
 };
 
@@ -165,6 +170,7 @@ function renderCookingMode() {
               <button class="secondaryAction" type="button" data-action="pause-timer" ${!progress.isTimerRunning ? "disabled" : ""}>Пауза</button>
               <button class="secondaryAction" type="button" data-action="resume-timer" ${progress.isTimerRunning || !progress.isTimerPaused ? "disabled" : ""}>Продовжити</button>
               <button class="secondaryAction" type="button" data-action="reset-timer">Скинути</button>
+              ${progress.isTimerAlarmActive ? '<button class="secondaryAction" type="button" data-action="stop-timer-sound">Зупинити звук</button>' : ""}
             </div>
           </div>
         ` : `<p class="muted">Для цього кроку таймер не потрібен.</p>`}
@@ -236,6 +242,7 @@ function bindRecipeDetailsEvents() {
 
 function bindCookingEvents() {
   document.querySelector('[data-action="back-to-details"]').addEventListener("click", () => {
+    stopRecipeTimerAlarm();
     saveCurrentProgress();
     viewMode = "detail";
     renderRecipesView();
@@ -246,6 +253,7 @@ function bindCookingEvents() {
       return;
     }
 
+    stopRecipeTimerAlarm();
     progress.currentStepIndex -= 1;
     resetTimerForCurrentStep();
     saveCurrentProgress();
@@ -256,6 +264,7 @@ function bindCookingEvents() {
     const recipe = getRecipeById(selectedRecipeId);
     const currentStepIndex = progress.currentStepIndex;
 
+    stopRecipeTimerAlarm();
     progress.completedSteps = Array.from(new Set([...progress.completedSteps, currentStepIndex]));
 
     if (currentStepIndex === recipe.steps.length - 1) {
@@ -263,6 +272,7 @@ function bindCookingEvents() {
       progress.remainingSeconds = null;
       progress.isTimerPaused = false;
       progress.isTimerRunning = false;
+      progress.isTimerAlarmActive = false;
       progress.completedSteps = recipe.steps.map((_, index) => index);
       saveCurrentProgress();
       viewMode = "detail";
@@ -280,9 +290,11 @@ function bindCookingEvents() {
   const pauseTimerButton = document.querySelector('[data-action="pause-timer"]');
   const resumeTimerButton = document.querySelector('[data-action="resume-timer"]');
   const resetTimerButton = document.querySelector('[data-action="reset-timer"]');
+  const stopTimerSoundButton = document.querySelector('[data-action="stop-timer-sound"]');
 
   if (startTimerButton) {
     startTimerButton.addEventListener("click", () => {
+      stopRecipeTimerAlarm();
       startTimerForCurrentStep();
     });
   }
@@ -298,13 +310,23 @@ function bindCookingEvents() {
 
   if (resumeTimerButton) {
     resumeTimerButton.addEventListener("click", () => {
+      stopRecipeTimerAlarm();
       startTimerForCurrentStep();
     });
   }
 
   if (resetTimerButton) {
     resetTimerButton.addEventListener("click", () => {
+      stopRecipeTimerAlarm();
       resetTimerForCurrentStep();
+      saveCurrentProgress();
+      renderRecipesView();
+    });
+  }
+
+  if (stopTimerSoundButton) {
+    stopTimerSoundButton.addEventListener("click", () => {
+      stopRecipeTimerAlarm();
       saveCurrentProgress();
       renderRecipesView();
     });
@@ -328,6 +350,7 @@ function startTimerForCurrentStep() {
 
   progress.isTimerRunning = true;
   progress.isTimerPaused = false;
+  progress.isTimerAlarmActive = false;
   saveCurrentProgress();
   renderRecipesView();
 }
@@ -352,8 +375,10 @@ function runTimerTick() {
     if (progress.remainingSeconds === 0) {
       progress.isTimerRunning = false;
       progress.isTimerPaused = true;
+      progress.isTimerAlarmActive = true;
       saveCurrentProgress();
       stopTimer();
+      startTimerFinishedSignal();
       renderRecipesView();
     }
   }, 1000);
@@ -364,6 +389,7 @@ function resetTimerForCurrentStep() {
   progress.remainingSeconds = currentStep.timerSeconds || null;
   progress.isTimerPaused = false;
   progress.isTimerRunning = false;
+  progress.isTimerAlarmActive = false;
 }
 
 function getRemainingSeconds(step) {
@@ -386,6 +412,7 @@ function normalizeProgress(storedProgress, recipe) {
     ...storedProgress,
     currentStepIndex,
     isTimerRunning: false,
+    isTimerAlarmActive: false,
     completedSteps: Array.isArray(storedProgress?.completedSteps)
       ? storedProgress.completedSteps.filter((stepIndex) => stepIndex >= 0 && stepIndex <= maxStepIndex)
       : []
@@ -401,6 +428,11 @@ function stopTimer() {
     window.clearInterval(timerId);
     timerId = null;
   }
+}
+
+function stopRecipeTimerAlarm() {
+  progress.isTimerAlarmActive = false;
+  stopTimerFinishedSignal();
 }
 
 function getSelectedServings(recipe) {

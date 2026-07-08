@@ -153,6 +153,89 @@
   margin-bottom: 0;
 }
 
+.exerciseSelectionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trainingProgramCard {
+  border-radius: 18px;
+}
+
+.programNameField {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.programHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.programHeader h4 {
+  margin: 0 0 10px;
+}
+
+.programActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.compactAction {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.trainingExercise {
+  padding: 10px;
+}
+
+.trainingExerciseMuted {
+  opacity: .72;
+}
+
+.exerciseHeader {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.exerciseToggle {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+}
+
+.exerciseSelectLabel {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  font-weight: 850;
+}
+
+.exerciseSelectLabel input {
+  width: auto;
+}
+
+.exerciseName {
+  overflow-wrap: anywhere;
+}
+
+.exerciseDetails {
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
 .changelogBlock {
   margin-top: 14px;
 }

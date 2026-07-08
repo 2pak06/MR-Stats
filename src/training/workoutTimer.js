@@ -1,3 +1,7 @@
+import {
+  startTimerFinishedSignal,
+  stopTimerFinishedSignal
+} from "../utils/timerSound.js";
 import { toNumber } from "./workoutEngine.js";
 
 let restTimerId = null;
@@ -23,7 +27,10 @@ export function startRestTimer(exercise, trainingContext) {
   trainingContext.saveActiveWorkoutState();
 
   if (trainingContext.getActiveWorkout().rest.secondsLeft <= 0) {
-    restTimerId = window.setTimeout(trainingContext.finishRestAndAdvance, 0);
+    restTimerId = window.setTimeout(() => {
+      startTimerFinishedSignal();
+      trainingContext.finishRestAndAdvance();
+    }, 0);
     return;
   }
 
@@ -59,17 +66,24 @@ export function startRestCountdown(trainingContext) {
     trainingContext.saveActiveWorkoutState();
 
     if (secondsLeft <= 0) {
+      startTimerFinishedSignal();
       trainingContext.finishRestAndAdvance();
     }
   }, 1000);
 }
 
-export function stopRestTimer() {
+export function stopRestTimer({ stopSignal = true } = {}) {
   if (!restTimerId) {
+    if (stopSignal) {
+      stopTimerFinishedSignal();
+    }
     return;
   }
 
   window.clearInterval(restTimerId);
   window.clearTimeout(restTimerId);
   restTimerId = null;
+  if (stopSignal) {
+    stopTimerFinishedSignal();
+  }
 }

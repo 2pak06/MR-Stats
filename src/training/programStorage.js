@@ -21,6 +21,7 @@ export function createProgramExercise() {
     id: `exercise_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     name: "Нова вправа",
     mode: "sets",
+    selected: true,
     sets: 3,
     reps: 10,
     weight: "",
