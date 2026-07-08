@@ -98,7 +98,7 @@ export function initCalendarPage(todayKey) {
   });
 
   calendarPage?.addEventListener("change", (event) => {
-    saveSelectedDay();
+    saveSelectedDay({ refreshCalendar: true });
 
     if (event.target.matches("#calendarWeight") && event.target.value) {
       saveWeightEntry({
@@ -206,7 +206,7 @@ function renderCheckRow(task, checked) {
   `;
 }
 
-function saveSelectedDay() {
+function saveSelectedDay({ refreshCalendar = false } = {}) {
   const currentDay = getCalendarDay(selectedDateKey);
   const tasks = {};
 
@@ -223,7 +223,9 @@ function saveSelectedDay() {
     note: document.getElementById("calendarNote")?.value || ""
   });
 
-  renderCalendar();
+  if (refreshCalendar) {
+    renderCalendar();
+  }
 
   window.dispatchEvent(new CustomEvent(CALENDAR_UPDATED_EVENT, {
     detail: { dateKey: selectedDateKey, source: "calendar" }
