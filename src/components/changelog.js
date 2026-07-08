@@ -14,7 +14,7 @@ const CURRENT_VERSION_CHANGES = [
 
 const ALL_VERSION_CHANGES = [
   {
-    version: "v0.5.4-1",
+    version: "v0.5.5",
     changes: [
       "Виправлено адаптивність календаря на різних розмірах екрана.",
       "Виправлено втрату фокусу в полях вводу під час набору тексту."
