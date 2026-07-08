@@ -236,11 +236,60 @@
   padding-top: 12px;
 }
 
-.changelogBlock {
-  margin-top: 14px;
+.topbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
-.changelogBlock ul {
+.changelogOpenBtn {
+  white-space: nowrap;
+}
+
+.changelogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 13, .76);
+  padding: 18px;
+}
+
+.changelogOverlay[hidden] {
+  display: none;
+}
+
+.changelogModal {
+  width: min(620px, 100%);
+  max-height: min(720px, calc(100vh - 36px));
+  overflow: auto;
+}
+
+.changelogModalHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.changelogModalHeader h3 {
+  margin: 0;
+}
+
+.changelogCategory {
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.changelogCategory h4 {
+  margin: 0 0 8px;
+}
+
+.changelogCategory ul {
   margin-bottom: 0;
   padding-left: 20px;
 }

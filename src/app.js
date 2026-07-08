@@ -1,3 +1,4 @@
+import { initChangelog, renderChangelogModal } from "./components/changelog.js";
 import { renderLayout } from "./components/layout.js";
 import { getPageTitle } from "./components/navigation.js";
 import { renderPages } from "./pages/index.js";
@@ -9,15 +10,19 @@ import { getTodayKey } from "./utils/date.js";
 const todayKey = getTodayKey();
 const appRoot = document.getElementById("app");
 
-appRoot.innerHTML = renderLayout({
-  todayKey,
-  pages: renderPages()
-});
+appRoot.innerHTML = `
+  ${renderLayout({
+    todayKey,
+    pages: renderPages()
+  })}
+  ${renderChangelogModal()}
+`;
 
 initNavigation();
 initHomePage(todayKey);
 initRecipesPage();
 initSettingsPage();
+initChangelog();
 
 function initNavigation() {
   document.querySelectorAll(".navBtn").forEach((button) => {

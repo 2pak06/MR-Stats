@@ -1,4 +1,3 @@
-import { renderChangelog } from "../components/changelog.js";
 import { renderFuturePage } from "./futurePage.js";
 import { renderHomePage } from "./home.js";
 import { renderRecipesPage } from "./recipes.js";
@@ -31,9 +30,5 @@ export function renderPages() {
       description: "Тут буде облік продуктів, залишків і термінів придатності."
     }),
     renderSettingsPage()
-  ].map(appendChangelog).join("");
-}
-
-function appendChangelog(pageHtml) {
-  return pageHtml.replace("</section>", `${renderChangelog()}</section>`);
+  ].join("");
 }

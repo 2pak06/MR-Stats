@@ -1,4 +1,5 @@
 import { APP_VERSION } from "../config/appInfo.js";
+import { renderChangelogButton } from "./changelog.js";
 import { renderNavigation } from "./navigation.js";
 
 export function renderLayout({ todayKey, pages }) {
@@ -21,7 +22,10 @@ export function renderLayout({ todayKey, pages }) {
       <main class="main">
         <div class="topbar">
           <h2 id="pageTitle">Головна</h2>
-          <div class="dateBox" id="todayDate">${todayKey}</div>
+          <div class="topbarActions">
+            ${renderChangelogButton()}
+            <div class="dateBox" id="todayDate">${todayKey}</div>
+          </div>
         </div>
 
         ${pages}
