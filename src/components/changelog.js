@@ -4,28 +4,78 @@ const CHANGELOG_STORAGE_KEY = "mr_seen_changelog_version";
 
 const CURRENT_VERSION_CHANGES = [
   {
-    title: "✨ Покращення",
+    title: "🗓️ Календар",
     changes: [
-      'Оновлено вікно "Що нового".',
-      "У програмі тепер показуються тільки зміни поточної версії.",
-      "Старі версії більше не показуються в програмі.",
-      "Повна історія релізів залишається на GitHub.",
-      'Вікно "Що нового" автоматично відкривається один раз після оновлення.',
-      "Після закриття воно більше не відкривається автоматично для цієї версії."
+      'Додано повноцінну вкладку "Календар".',
+      "Додано місячну сітку календаря з деталями обраного дня.",
+      "Додано збереження даних окремо для кожної дати.",
+      "Додано синхронізацію з головною сторінкою.",
+      "Додано вагу і нотатки по датах.",
+      "Додано автоматичну відмітку тренування після завершення."
+    ]
+  }
+];
+
+const ALL_VERSION_CHANGES = [
+  {
+    version: "v0.5.4",
+    changes: [
+      "Календар.",
+      "Синхронізація з головною сторінкою.",
+      "Вага і нотатки по датах.",
+      "Автоматична відмітка тренування після завершення."
     ]
   },
   {
-    title: "🐞 Виправлення",
+    version: "v0.5.3",
     changes: [
-      "Виправлено англійські назви у списку змін: тепер використовуються українські назви вкладок."
+      'Нове вікно "Що нового".',
+      "Показ поточних змін.",
+      "Автоматичне відкриття один раз після оновлення.",
+      "Виправлення українських назв у changelog."
+    ]
+  },
+  {
+    version: "v0.5.2",
+    changes: [
+      "Звуковий сигнал завершення таймера у Тренуваннях.",
+      "Звуковий сигнал завершення таймера у Рецептах.",
+      "Повторюваний сигнал до ручного зупинення.",
+      'Кнопка "Зупинити звук".'
+    ]
+  },
+  {
+    version: "v0.5.1",
+    changes: [
+      "Запуск тренування.",
+      "Підтвердження підходу.",
+      "Таймер відпочинку.",
+      "Відновлення тренування після перезапуску.",
+      "Покращення структури Тренувань.",
+      "Покращення автооновлення."
+    ]
+  },
+  {
+    version: "v0.5.0",
+    changes: [
+      'Додано вкладку "Рецепти".',
+      "Додано базу рецептів.",
+      "Додано перегляд рецепта з інгредієнтами та кроками приготування.",
+      "Додано таймери приготування у рецептах.",
+      "Додано збереження прогресу рецепта.",
+      "Додано головну сторінку з планом на сьогодні, швидким записом ваги і нотатками дня.",
+      'Додано вкладку "Вага" для відстеження зважувань.'
     ]
   }
 ];
 
 export function renderChangelogButton() {
   return `
-    <button class="secondaryAction changelogOpenBtn" type="button" data-action="open-changelog">
+    <button class="secondaryAction changelogOpenBtn" type="button" data-action="open-changelog" data-changelog-mode="current">
       Що нового
+    </button>
+    <button class="secondaryAction changelogOpenBtn" type="button" data-action="open-changelog" data-changelog-mode="all">
+      Всі оновлення
     </button>
   `;
 }
@@ -38,7 +88,9 @@ export function renderChangelogModal() {
           <h3 id="changelogTitle">Що нового у версії ${APP_VERSION}</h3>
           <button class="secondaryAction" type="button" data-action="close-changelog">Закрити</button>
         </div>
-        ${CURRENT_VERSION_CHANGES.map(renderChangeCategory).join("")}
+        <div id="changelogContent">
+          ${renderCurrentVersionChanges()}
+        </div>
       </section>
     </div>
   `;
@@ -46,7 +98,7 @@ export function renderChangelogModal() {
 
 export function initChangelog() {
   document.querySelectorAll('[data-action="open-changelog"]').forEach((button) => {
-    button.addEventListener("click", () => openChangelog());
+    button.addEventListener("click", () => openChangelog(button.dataset.changelogMode || "current"));
   });
 
   document.querySelectorAll('[data-action="close-changelog"]').forEach((button) => {
@@ -66,8 +118,23 @@ export function initChangelog() {
   });
 
   if (localStorage.getItem(CHANGELOG_STORAGE_KEY) !== APP_VERSION) {
-    openChangelog();
+    openChangelog("current");
   }
+}
+
+function renderCurrentVersionChanges() {
+  return CURRENT_VERSION_CHANGES.map(renderChangeCategory).join("");
+}
+
+function renderAllVersionChanges() {
+  return ALL_VERSION_CHANGES.map((release) => `
+    <section class="changelogCategory changelogVersion">
+      <h4>${release.version}</h4>
+      <ul>
+        ${release.changes.map((change) => `<li>${change}</li>`).join("")}
+      </ul>
+    </section>
+  `).join("");
 }
 
 function renderChangeCategory(category) {
@@ -81,7 +148,19 @@ function renderChangeCategory(category) {
   `;
 }
 
-function openChangelog() {
+function openChangelog(mode = "current") {
+  const title = document.getElementById("changelogTitle");
+  const content = document.getElementById("changelogContent");
+
+  if (title && content) {
+    title.textContent = mode === "all"
+      ? "Всі оновлення"
+      : `Що нового у версії ${APP_VERSION}`;
+    content.innerHTML = mode === "all"
+      ? renderAllVersionChanges()
+      : renderCurrentVersionChanges();
+  }
+
   document.getElementById("changelogOverlay")?.removeAttribute("hidden");
 }
 

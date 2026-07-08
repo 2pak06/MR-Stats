@@ -1,3 +1,4 @@
+import { renderCalendarPage } from "../calendar/calendarPage.js";
 import { renderFuturePage } from "./futurePage.js";
 import { renderHomePage } from "./home.js";
 import { renderRecipesPage } from "./recipes.js";
@@ -11,12 +12,7 @@ export function renderPages() {
     renderRecipesPage(),
     renderTrainingPage(),
     renderWeightPage(),
-    renderFuturePage({
-      id: "calendar",
-      icon: "📅",
-      title: "Календар",
-      description: "Тут буде історія по днях."
-    }),
+    renderCalendarPage(),
     renderFuturePage({
       id: "shopping",
       icon: "🛒",

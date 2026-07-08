@@ -7,6 +7,7 @@ export function saveActiveWorkoutState(activeWorkout) {
 
   localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify({
     programId: activeWorkout.program.id,
+    selectedExerciseIds: activeWorkout.program.exercises.map((exercise) => exercise.id),
     exerciseIndex: activeWorkout.exerciseIndex,
     stepIndex: activeWorkout.stepIndex,
     rest: activeWorkout.rest,

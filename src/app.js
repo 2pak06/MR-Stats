@@ -1,4 +1,5 @@
 import { initChangelog, renderChangelogModal } from "./components/changelog.js";
+import { initCalendarPage } from "./calendar/calendarPage.js";
 import { renderLayout } from "./components/layout.js";
 import { getPageTitle } from "./components/navigation.js";
 import { renderPages } from "./pages/index.js";
@@ -20,6 +21,7 @@ appRoot.innerHTML = `
 
 initNavigation();
 initHomePage(todayKey);
+initCalendarPage(todayKey);
 initRecipesPage();
 initSettingsPage();
 initChangelog();

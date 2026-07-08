@@ -30,7 +30,11 @@ import {
   startRestTimer,
   stopRestTimer
 } from "./workoutTimer.js";
+import { markTrainingCompleted } from "../calendar/calendarStorage.js";
+import { getTodayKey } from "../utils/date.js";
 import { stopTimerFinishedSignal } from "../utils/timerSound.js";
+
+const CALENDAR_UPDATED_EVENT = "calendar-day-updated";
 
 let isCreateProgramFormOpen = false;
 let savedWorkoutState = loadSavedActiveWorkoutState();
@@ -578,7 +582,7 @@ function startWorkout(programId) {
     return;
   }
 
-  const selectedExercises = program.exercises.filter(isExerciseSelected);
+  const selectedExercises = getWorkoutExercises(program);
 
   if (!selectedExercises.length) {
     trainingMessage = "Оберіть хоча б одну вправу для запуску тренування.";
@@ -614,7 +618,22 @@ function continueSavedWorkout() {
     return;
   }
 
-  activeWorkout = restoreActiveWorkout(program, savedWorkoutState);
+  const selectedExercises = getWorkoutExercises(program, savedWorkoutState.selectedExerciseIds);
+
+  if (!selectedExercises.length) {
+    stopRestTimer();
+    activeWorkout = null;
+    savedWorkoutState = null;
+    restoreMessage = "У програмі немає вибраних вправ. Тренування не відновлено.";
+    clearSavedActiveWorkout();
+    refreshTrainingContent();
+    return;
+  }
+
+  activeWorkout = restoreActiveWorkout({
+    ...program,
+    exercises: selectedExercises
+  }, savedWorkoutState);
   savedWorkoutState = null;
   restoreMessage = "";
   saveActiveWorkoutState();
@@ -695,7 +714,6 @@ function finishRestAndAdvance() {
 
   stopRestTimer({ stopSignal: false });
   advanceActiveWorkoutStep();
-  saveActiveWorkoutState();
 }
 
 function advanceActiveWorkoutStep() {
@@ -707,6 +725,7 @@ function advanceActiveWorkoutStep() {
   activeWorkout = result.activeWorkout;
 
   if (result.shouldClearSavedWorkout) {
+    markTodayTrainingCompleted();
     clearSavedActiveWorkout();
   } else {
     saveActiveWorkoutState();
@@ -717,6 +736,14 @@ function advanceActiveWorkoutStep() {
 
 function saveActiveWorkoutState() {
   persistActiveWorkoutState(activeWorkout);
+}
+
+function markTodayTrainingCompleted() {
+  const todayKey = getTodayKey();
+  markTrainingCompleted(todayKey);
+  window.dispatchEvent(new CustomEvent(CALENDAR_UPDATED_EVENT, {
+    detail: { dateKey: todayKey, source: "training" }
+  }));
 }
 
 function getTrainingContext() {
@@ -824,6 +851,15 @@ function toggleExerciseExpanded(exerciseId) {
 
 function isExerciseSelected(exercise) {
   return exercise.selected !== false;
+}
+
+function getWorkoutExercises(program, selectedExerciseIds = null) {
+  if (Array.isArray(selectedExerciseIds) && selectedExerciseIds.length) {
+    const selectedIds = new Set(selectedExerciseIds);
+    return program.exercises.filter((exercise) => selectedIds.has(exercise.id));
+  }
+
+  return program.exercises.filter(isExerciseSelected);
 }
 
 function getNextExerciseSelection(exercise, mode) {

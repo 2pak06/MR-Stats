@@ -12,9 +12,17 @@ export function saveTodayData(todayKey, data) {
 }
 
 export function addWeightEntry(entry) {
+  saveWeightEntry(entry);
+}
+
+export function saveWeightEntry(entry) {
   const weights = readJson(WEIGHTS_KEY, []);
-  weights.unshift(entry);
-  localStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights.slice(0, 100)));
+  const nextWeights = [
+    entry,
+    ...weights.filter((weight) => weight.date !== entry.date)
+  ];
+
+  localStorage.setItem(WEIGHTS_KEY, JSON.stringify(nextWeights.slice(0, 100)));
 }
 
 export function collectExportData() {

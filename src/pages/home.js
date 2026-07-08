@@ -1,4 +1,7 @@
-import { addWeightEntry, loadTodayData, saveTodayData } from "../storage/localStorage.js";
+import { getCalendarDay, saveCalendarDay } from "../calendar/calendarStorage.js";
+import { saveWeightEntry } from "../storage/localStorage.js";
+
+const CALENDAR_UPDATED_EVENT = "calendar-day-updated";
 
 export function renderHomePage() {
   return `
@@ -6,11 +9,11 @@ export function renderHomePage() {
       <div class="grid">
         <div class="card">
           <h3>✅ План на сьогодні</h3>
-          <label class="checkRow"><input type="checkbox" data-save="breakfast"> 🌅 Сніданок</label>
-          <label class="checkRow"><input type="checkbox" data-save="lunch"> 🍱 Обід</label>
-          <label class="checkRow"><input type="checkbox" data-save="dinner"> 🌆 Вечеря</label>
-          <label class="checkRow"><input type="checkbox" data-save="snack"> 🍎 Перекус</label>
-          <label class="checkRow"><input type="checkbox" data-save="trainingDone"> 💪 Тренування</label>
+          <label class="checkRow"><input type="checkbox" data-task="breakfast"> 🌅 Сніданок</label>
+          <label class="checkRow"><input type="checkbox" data-task="lunch"> 🍱 Обід</label>
+          <label class="checkRow"><input type="checkbox" data-task="dinner"> 🌆 Вечеря</label>
+          <label class="checkRow"><input type="checkbox" data-task="snack"> 🍎 Перекус</label>
+          <label class="checkRow"><input type="checkbox" data-task="training"> 💪 Тренування</label>
         </div>
 
         <div class="card">
@@ -31,39 +34,47 @@ export function renderHomePage() {
 }
 
 export function initHomePage(todayKey) {
-  const data = loadTodayData(todayKey);
   const dayNote = document.getElementById("dayNote");
   const quickWeight = document.getElementById("quickWeight");
   const weightStatus = document.getElementById("weightStatus");
   const saveWeightButton = document.querySelector('[data-action="save-weight"]');
 
-  document.querySelectorAll("[data-save]").forEach((element) => {
-    element.checked = Boolean(data[element.dataset.save]);
+  applyHomeData(getCalendarDay(todayKey));
+
+  document.querySelectorAll("[data-task]").forEach((element) => {
     element.addEventListener("change", () => saveToday(todayKey));
   });
 
-  dayNote.value = data.note || "";
   dayNote.addEventListener("input", () => saveToday(todayKey));
 
-  if (data.weight) {
-    quickWeight.value = data.weight;
-    weightStatus.textContent = `Записано: ${data.weight} кг`;
-  }
-
   saveWeightButton.addEventListener("click", () => saveQuickWeight(todayKey));
+
+  window.addEventListener(CALENDAR_UPDATED_EVENT, (event) => {
+    if (event.detail?.dateKey === todayKey && event.detail?.source !== "home") {
+      applyHomeData(getCalendarDay(todayKey));
+    }
+  });
 }
 
 function saveToday(todayKey) {
-  const data = {};
+  const currentDay = getCalendarDay(todayKey);
+  const tasks = {};
 
-  document.querySelectorAll("[data-save]").forEach((element) => {
-    data[element.dataset.save] = element.checked;
+  document.querySelectorAll("[data-task]").forEach((element) => {
+    tasks[element.dataset.task] = element.checked;
   });
 
-  data.note = document.getElementById("dayNote").value;
-  data.weight = document.getElementById("quickWeight").value;
+  const data = {
+    tasks: {
+      ...currentDay.tasks,
+      ...tasks
+    },
+    note: document.getElementById("dayNote").value,
+    weight: document.getElementById("quickWeight").value
+  };
 
-  saveTodayData(todayKey, data);
+  saveCalendarDay(todayKey, data);
+  notifyCalendarDayUpdated(todayKey);
 }
 
 function saveQuickWeight(todayKey) {
@@ -74,8 +85,26 @@ function saveQuickWeight(todayKey) {
     return;
   }
 
-  addWeightEntry({ date: todayKey, value });
+  saveWeightEntry({ date: todayKey, value });
   saveToday(todayKey);
 
   document.getElementById("weightStatus").textContent = `Записано: ${value} кг`;
+}
+
+function applyHomeData(data) {
+  document.querySelectorAll("[data-task]").forEach((element) => {
+    element.checked = Boolean(data.tasks[element.dataset.task]);
+  });
+
+  document.getElementById("dayNote").value = data.note || "";
+  document.getElementById("quickWeight").value = data.weight || "";
+  document.getElementById("weightStatus").textContent = data.weight
+    ? `Записано: ${data.weight} кг`
+    : "Поки не записано.";
+}
+
+function notifyCalendarDayUpdated(dateKey) {
+  window.dispatchEvent(new CustomEvent(CALENDAR_UPDATED_EVENT, {
+    detail: { dateKey, source: "home" }
+  }));
 }
