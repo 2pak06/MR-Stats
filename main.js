@@ -2,7 +2,11 @@ const { app, BrowserWindow, dialog } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 
+const appUserModelId = "com.mrstats.app";
+const appIconPath = path.join(__dirname, "build", "icon.ico");
+
 autoUpdater.autoDownload = false;
+app.setAppUserModelId(appUserModelId);
 
 let mainWindow;
 let updatePromptShown = false;
@@ -15,6 +19,7 @@ function createWindow() {
     height: 820,
     minWidth: 360,
     minHeight: 620,
+    icon: appIconPath,
     backgroundColor: "#0f1115",
     title: "MR Stats",
     autoHideMenuBar: true,
@@ -34,7 +39,7 @@ function checkForUpdates() {
   }
 
   autoUpdater.checkForUpdates().catch((error) => {
-    console.error("Update check failed:", error);
+    logUpdaterError("checkForUpdates", error);
     showUpdateError("Не вдалося перевірити оновлення.");
   });
 }
@@ -104,12 +109,12 @@ autoUpdater.on("error", (error) => {
     return;
   }
 
-  console.error("Auto updater error:", error);
+  logUpdaterError("autoUpdater error event", error);
   showUpdateError("Не вдалося перевірити оновлення.");
 });
 
 function handleUpdateDownloadError(error) {
-  console.error("Update download failed:", error);
+  logUpdaterError("downloadUpdate", error);
 
   updateDownloadStarted = false;
 
@@ -129,6 +134,25 @@ function handleUpdateDownloadError(error) {
     title: "Оновлення MR Stats",
     message: "Помилка оновлення. Не вдалося завантажити оновлення."
   });
+}
+
+function logUpdaterError(context, error) {
+  console.error(`Updater error: ${context}`);
+  console.error("Updater app.isPackaged:", app.isPackaged);
+  console.error("Updater app version:", app.getVersion());
+  console.error("Updater resourcesPath:", process.resourcesPath);
+  console.error("Updater execPath:", process.execPath);
+  console.error("Updater feedURL:", autoUpdater.getFeedURL?.());
+  console.error("Updater error message:", error?.message);
+  console.error("Updater error stack:", error?.stack);
+  console.error("Updater error code:", error?.code);
+  console.error("Updater error statusCode:", error?.statusCode);
+  console.error("Updater error url:", error?.url);
+  console.error("Updater error response statusCode:", error?.response?.statusCode);
+  console.error("Updater error response statusMessage:", error?.response?.statusMessage);
+  console.error("Updater error response url:", error?.response?.url);
+  console.error("Updater error response:", error?.response);
+  console.error("Updater error object:", error);
 }
 
 function showUpdateError(message) {

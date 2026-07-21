@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="MR Stats">
-  <rect width="256" height="256" rx="56" fill="#0f1115"/>
-  <rect x="24" y="24" width="208" height="208" rx="44" fill="#1b202b" stroke="#303747" stroke-width="4"/>
-  <path d="M68 164V92h22l18 44 18-44h22v72h-18v-42l-15 36h-14l-15-36v42H68Z" fill="#7dd3fc"/>
-  <path d="M162 164V92h32c16 0 28 10 28 25 0 10-5 18-14 22l18 25h-22l-15-22h-9v22h-18Zm18-38h13c7 0 11-3 11-9s-4-9-11-9h-13v18Z" fill="#a78bfa"/>
-</svg>
