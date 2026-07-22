@@ -411,14 +411,147 @@
   top: 18px;
 }
 
-.calendarChecklist {
+.calendarSectionTitle {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0 10px;
+}
+
+.calendarSectionTitle h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.calendarSaveState {
+  color: var(--good);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.calendarSaveState.show {
+  opacity: 1;
+}
+
+.calendarSlotList {
   display: grid;
-  gap: 2px;
+  gap: 9px;
   margin-bottom: 14px;
 }
 
-.calendarCheckRow {
-  min-height: 48px;
+.calendarSlot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--card-strong);
+  border-radius: 16px;
+  padding: 10px;
+}
+
+.calendarSlotDone {
+  border-color: rgba(134, 239, 172, .45);
+  background: rgba(134, 239, 172, .08);
+}
+
+.calendarSlotIcon {
+  font-size: 22px;
+}
+
+.calendarSlotText {
+  min-width: 0;
+}
+
+.calendarSlotText strong,
+.calendarSlotText span {
+  display: block;
+}
+
+.calendarSlotText span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendarSlotActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.calendarPickerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 13, .76);
+  padding: 18px;
+}
+
+.calendarPickerOverlay[hidden] {
+  display: none;
+}
+
+.calendarPickerModal {
+  width: min(540px, 100%);
+  max-height: min(680px, calc(100vh - 36px));
+  overflow: auto;
+}
+
+.calendarPickerHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.calendarPickerHeader h3 {
+  margin: 0;
+}
+
+.calendarPickerChoices {
+  display: grid;
+  gap: 8px;
+}
+
+.calendarPickerChoice {
+  border: 1px solid var(--line);
+  background: var(--card-strong);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.calendarPickerChoice:hover {
+  background: #283044;
+}
+
+.calendarPickerChoice strong,
+.calendarPickerChoice span {
+  display: block;
+}
+
+.calendarPickerChoice span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.calendarPickerClear {
+  color: var(--bad);
 }
 
 .calendarDetailsCard textarea {

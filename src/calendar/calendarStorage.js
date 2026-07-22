@@ -13,6 +13,8 @@ const DEFAULT_TASKS = {
 
 const DEFAULT_DAY = {
   tasks: { ...DEFAULT_TASKS },
+  meals: {},
+  trainingPlan: null,
   weight: "",
   note: ""
 };
@@ -72,6 +74,9 @@ function createEmptyDay() {
 }
 
 function normalizeCalendarDay(data = {}) {
+  const meals = normalizeMeals(data.meals || {});
+  const trainingPlan = normalizeTrainingPlan(data.trainingPlan || data.training);
+
   return {
     ...DEFAULT_DAY,
     ...data,
@@ -86,8 +91,41 @@ function normalizeCalendarDay(data = {}) {
       water: data.tasks?.water ?? Boolean(data.waterDone),
       sleep: data.tasks?.sleep ?? Boolean(data.sleepDone)
     },
+    meals,
+    trainingPlan,
     weight: data.weight || "",
     note: data.note || ""
+  };
+}
+
+function normalizeMeals(meals = {}) {
+  return {
+    breakfast: normalizeRecipeId(meals.breakfast),
+    lunch: normalizeRecipeId(meals.lunch),
+    dinner: normalizeRecipeId(meals.dinner),
+    snack: normalizeRecipeId(meals.snack)
+  };
+}
+
+function normalizeRecipeId(entry) {
+  if (!entry) {
+    return "";
+  }
+
+  if (typeof entry === "string") {
+    return entry;
+  }
+
+  return entry.recipeId || entry.id || "";
+}
+
+function normalizeTrainingPlan(trainingPlan) {
+  if (!trainingPlan) {
+    return null;
+  }
+
+  return {
+    programId: trainingPlan.programId || trainingPlan.id || ""
   };
 }
 

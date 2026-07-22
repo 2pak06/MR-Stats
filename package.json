@@ -1,7 +1,7 @@
 {
   "name": "mr-stats",
   "productName": "MR Stats",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "description": "MR Stats — personal nutrition, workout and progress tracker",
   "main": "main.js",
   "scripts": {

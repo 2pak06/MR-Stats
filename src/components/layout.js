@@ -7,7 +7,7 @@ export function renderLayout({ todayKey, pages }) {
     <div class="app">
       <aside class="sidebar">
         <div class="logo">
-          <div class="logoIcon">📊</div>
+          <img class="logoIcon" src="build/icon.png" alt="" aria-hidden="true">
           <div>
             <h1>MR Stats</h1>
             <p>v${APP_VERSION}</p>
