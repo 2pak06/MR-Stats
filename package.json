@@ -28,6 +28,7 @@
       "main.js",
       "package.json",
       "build/icon.ico",
+      "build/icon.png",
       "src/**/*"
     ],
     "win": {
